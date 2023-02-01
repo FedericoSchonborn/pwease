@@ -1,6 +1,12 @@
 [package]
 name = "pwease"
+description = "Run a command until it succeeds"
 version = "0.1.0"
+license = "MIT"
+repository = "https://github.com/FedericoSchonborn/pwease"
+readme = "README.md"
+categories = ["command-line-utilities"]
+keywords = ["pwease", "command", "runner"]
 edition = "2021"
 
 [dependencies]
