@@ -1,0 +1,11 @@
+# Direnv
+.direnv
+
+# Nix
+result
+result-*
+
+
+# Added by cargo
+
+/target
