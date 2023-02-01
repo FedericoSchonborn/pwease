@@ -3,34 +3,63 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
+
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-utils.follows = "flake-utils";
+      };
+    };
+
+    crane = {
+      url = "github:ipetkov/crane";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-utils.follows = "flake-utils";
+        rust-overlay.follows = "rust-overlay";
+      };
+    };
   };
 
-  outputs = {nixpkgs, ...}: let
-    forEachSystem = f: nixpkgs.lib.genAttrs ["x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin"] (system: f nixpkgs.legacyPackages.${system});
-  in {
-    packages = forEachSystem (pkgs: rec {
-      pwease = pkgs.rustPlatform.buildRustPackage {
-        pname = "pwease";
-        version = "unstable";
-
-        src = pkgs.nix-gitignore.gitignoreSource [] ./.;
-        cargoLock.lockFile = ./Cargo.lock;
-      };
-
-      default = pwease;
-    });
-
-    devShells = forEachSystem (pkgs: {
-      default = pkgs.mkShell {
-        packages = with pkgs; [
-          cargo
-          clippy
-          rustc
-          rustfmt
+  outputs = {
+    self,
+    nixpkgs,
+    flake-utils,
+    rust-overlay,
+    crane,
+    ...
+  }:
+    flake-utils.lib.eachDefaultSystem (system: let
+      pkgs = import nixpkgs {
+        inherit system;
+        overlays = [
+          (import rust-overlay)
         ];
       };
-    });
 
-    formatter = forEachSystem (pkgs: pkgs.alejandra);
-  };
+      rustToolchain = pkgs.rust-bin.stable.latest;
+      craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain.minimal;
+    in {
+      packages = rec {
+        pwease = craneLib.buildPackage {
+          src = craneLib.cleanCargoSource ./.;
+        };
+
+        default = pwease;
+      };
+
+      devShells.default = pkgs.mkShell {
+        packages = [
+          rustToolchain.default
+        ];
+
+        shellHook = ''
+          rustc --version
+        '';
+      };
+
+      formatter = pkgs.alejandra;
+    });
 }
